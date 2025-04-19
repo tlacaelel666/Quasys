@@ -1,4 +1,28 @@
+"""
+El código implementa un sistema híbrido de inteligencia artificial que combina:
 
+Una red de nodos fotónicos simulados (para el procesamiento de información cuántica)
+Redes neuronales recurrentes (GRU o LSTM) para procesamiento secuencial
+Inferencia bayesiana para la toma de decisiones y medición de confianza
+
+** Aspectos Destacados
+
+Enfoque híbrido: Combina conceptos de computación cuántica con aprendizaje profundo
+Inferencia bayesiana: Utiliza conceptos de estadística bayesiana para cuantificar incertidumbre
+Visualización: Incluye herramientas para visualizar resultados y comportamiento del sistema
+Regularización: Implementa técnicas como dropout y batch normalization para prevenir el sobreajuste
+Adaptabilidad: Ajusta automáticamente parámetros como la tasa de aprendizaje
+
+Es importante señalar que esto es una simulación de computación cuántica,
+no una implementación real en hardware cuántico.
+El código modela comportamientos cuánticos como la coherencia, interferencia y estados cuánticos 
+usando matemáticas complejas, pero se ejecuta en hardware clásico.
+
+fecha:18/04/2025
+version: quantum simulator "Quasi v1.0.0"
+autor: Jacobo Tlacaelel mina rodriguez "jako"
+
+"""
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
