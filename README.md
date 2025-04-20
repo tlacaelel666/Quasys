@@ -1,4 +1,7 @@
-Quasi 
+![qualogo](https://github.com/user-attachments/assets/2b7d1ea1-768c-40fb-8862-5c1b48abc751)
+# Quasys
+
+quantum system simulation
 
 * Es importante señalar que esto es una simulación de computación cuántica, no una implementación real en hardware cuántico. El código modela comportamientos cuánticos como la coherencia, interferencia y estados cuánticos usando matemáticas complejas, pero se ejecuta en hardware clásico. 
 
