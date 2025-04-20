@@ -1,23 +1,11 @@
-"""
-Sistema híbrido de IA que combina nodos fotónicos simulados, RNNs e inferencia bayesiana.
-Versión: Quantum Simulator "Quasi v1.0.0"
-Fecha: 18/04/2025
-Autor: Jacobo Tlacaelel Mina Rodriguez
-"""
-"""
-Sistema Modular de Simulación Cuántica Híbrida
-Integración del Quantum Simulator "Quasi" y QuoreMind
-Versión: 1.0.0
-Fecha: 20/04/2025
-Basado en código original de Jacobo Tlacaelel Mina Rodriguez
-"""
-
 import logging
 import math
 import time
+import argparse
+import sys
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Optional, List, Dict, Any, Callable
+from typing import Optional, List, Dict, Any, Callable, Tuple
 
 import numpy as np
 
@@ -192,18 +180,18 @@ class ConfiguracionSimulacion:
 class NodoFotonico:
     """Simula un nodo fotónico con procesamiento cuántico"""
 
-    def __init__(self, id_nodo: int, config):
+    def __init__(self, id_nodo: int, config: ConfiguracionNodoFotonico):
         self.id = id_nodo
         self.config = config
-        self.estado = self._inicializar_estado_cuantico
+        self.estado = self._inicializar_estado_cuantico()
         self.prior_alpha = config.prior_alpha_inicial
         self.prior_beta = config.prior_beta_inicial
+        self.historial_coherencia = []  # Inicializar historial de coherencia
+        self.tasa_aprendizaje = config.tasa_aprendizaje  # Inicializar tasa de aprendizaje
 
-
-    @property
     def _inicializar_estado_cuantico(self) -> np.ndarray:
         """Inicializa el estado cuántico del nodo"""
-        estado = np.random.rand(self.config) + 1j * np.random.rand(self.config.dimension)
+        estado = np.random.rand(self.config.dimension) + 1j * np.random.rand(self.config.dimension)
         return estado / np.linalg.norm(estado)
 
     def actualizar_estado(self, estado_entrada: np.ndarray) -> np.ndarray:
@@ -300,6 +288,7 @@ class QubitSuperconductor:
         self.tiempo_ultimo_reset = time.time()
         self.t_coherencia_max_base = t_coherencia_max  # microsegundos a temperatura base
         self._temperatura = temp_inicial  # milikelvin
+        self.tiempo_coherencia_max = t_coherencia_max  # Inicializar tiempo de coherencia máximo
         self.actualizar_coherencia_por_temp()
         logger.info(
             f"Qubit {self.id} inicializado a |0⟩, Temp={self._temperatura:.1f}mK, T_coh_max={self.tiempo_coherencia_max:.1f}μs")
@@ -562,32 +551,43 @@ class TransductorSQaOptico:
         # Devolver copia del estado para no modificar el original si la lectura no es QND
         return EstadoComplejo(qubit.estado_complejo.alpha, qubit.estado_complejo.beta)
 
-    def mapear_estado_a_foton(self, estado_sq: EstadoComplejo) -> EstadoFoton:
-        """Mapea el estado del qubit al estado de un fotón óptico."""
-        # Validar entrada
-        if estado_sq is None:
-            return EstadoFoton(0.0, 0.0, False)
 
-        # Simular éxito/fallo de transducción basado en eficiencia
-        if np.random.random() > self.eficiencia_conversion:
-            logger.warning("Fallo en transducción SQ->Óptico")
-            return EstadoFoton(0.0, 0.0, False)
+def mapear_estado_a_foton(self, estado_sq: EstadoComplejo) -> EstadoFoton:
+    """Mapea el estado del qubit al estado de un fotón óptico."""
+    # Validar entrada
+    if estado_sq is None:
+        return EstadoFoton(0.0, 0.0, valido=False)
 
-        try:
-            # Mapear amplitudes complejas a polarización y fase
-            # La polarización se determina por las probabilidades relativas
-            polarizacion = np.arccos(np.sqrt(estado_sq.probabilidad_0()))
+    # Calcular polarización basada en las probabilidades
+    # La polarización podría ser un mapeo del ángulo theta en la esfera de Bloch
+    prob_0 = estado_sq.probabilidad_0()
+    prob_1 = estado_sq.probabilidad_1()
 
-            # La fase viene de la fase relativa entre amplitudes
-            fase = estado_sq.fase_relativa()
+    # Polarización (0 = horizontal, pi/2 = vertical) basada en probabilidades
+    polarizacion = math.acos(math.sqrt(prob_0))
 
-            # Añadir ruido gaussiano a ambos parámetros
-            ruido = np.random.normal(0, self.ruido_fase_polarizacion)
-            polarizacion = np.clip(polarizacion + ruido, 0, np.pi)
-            fase = (fase + ruido) % (2 * np.pi)
+    # Fase del fotón basada en fase relativa del estado cuántico
+    fase = estado_sq.fase_relativa()
 
-            return EstadoFoton(polarizacion, fase, True)
+    # Añadir ruido a la transducción
+    polarizacion += np.random.normal(0, self.ruido_fase_polarizacion)
+    fase += np.random.normal(0, self.ruido_fase_polarizacion)
 
-        except Exception as e:
-            logger.error(f"Error en mapeo SQ->Óptico: {e}")
-            return EstadoFoton(0.0, 0.0, False)
+    # Normalizar ángulos
+    polarizacion = np.clip(polarizacion, 0, math.pi)
+    fase = fase % (2 * math.pi)
+
+    # Simular pérdida aleatoria basada en eficiencia
+    if np.random.random() > self.eficiencia_conversion:
+        logger.debug("Transducción falló - fotón no generado")
+        return EstadoFoton(0.0, 0.0, valido=False)
+
+    return EstadoFoton(polarizacion, fase, valido=True)
+
+
+def actualizar_eficiencia(self, temperatura: float, calidad_substrato: float = 0.9):
+    """Actualiza la eficiencia basada en condiciones físicas."""
+    # La eficiencia empeora con temperatura más alta
+    factor_temp = max(0.7, 1.0 - (temperatura - 10.0) / 100.0)
+    self.eficiencia_conversion = min(0.95,
+                                     0.8 * factor_temp * calidad_substrato)

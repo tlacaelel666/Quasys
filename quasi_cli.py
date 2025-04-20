@@ -1,10 +1,10 @@
 """
 Este archivo contiene la implementación de
 la interfaz de línea de comandos (CLI) para
- el sistema de gestión de tareas Quasys.
-fecha:20-04-2025
+el sistema de gestión de tareas Quosys.
+fecha: 20-04-2025
 autor: jacobo tlacaelel mina rodriguez "jako".
-version: Quasys 1.0
+version: Quosys 1.0
 descripcion: Este script permite a los usuarios interactuar con el sistema
 
 CLI para Quantum Simulator "Quasi" v1.0.0
@@ -12,13 +12,19 @@ Interfaz de línea de comandos para el Sistema Modular de Simulación Cuántica 
 """
 # !/usr/bin/env python3
 
-# python quasi_cli.py red medir
 import argparse
 import sys
 import time
 import logging
 import numpy as np
 from typing import List, Dict, Any, Optional
+
+# Configuración del logger
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger("QuasiCLI")
 
 # Importar el módulo principal del sistema
 try:
@@ -30,16 +36,10 @@ try:
         OperacionCuantica, ParametrosOperacion, MetricasSistema
     )
 except ImportError:
+    logger.error("No se pudo importar el módulo quantum_simulator.")
     print("Error: No se pudo importar el módulo quantum_simulator.")
     print("Asegúrese de que el archivo quantum_simulator.py esté en el mismo directorio.")
     sys.exit(1)
-
-# Configuración del logger
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger("QuasiCLI")
 
 
 def mostrar_banner():
@@ -55,6 +55,184 @@ def mostrar_banner():
        Quantum Simulator System - v1.0.0
     """
     print(banner)
+
+
+def iniciar_terminal_interactiva(cli):
+    """Inicia una terminal interactiva estilo Bash para la CLI."""
+    print("Bienvenido a la terminal interactiva de Quosys CLI.")
+    print("Escribe 'help' para ver los comandos disponibles o 'exit' para salir.")
+
+    # Mapeo de operaciones para qubit
+    operacion_map = {
+        "rotX": OperacionCuantica.ROTACION_X,
+        "rotY": OperacionCuantica.ROTACION_Y,
+        "rotZ": OperacionCuantica.ROTACION_Z,
+        "H": OperacionCuantica.HADAMARD,
+        "S": OperacionCuantica.FASE_S,
+        "reset": OperacionCuantica.RESET,
+        "medir": OperacionCuantica.MEDICION
+    }
+
+    while True:
+        try:
+            # Leer entrada del usuario con un prompt atractivo
+            entrada = input("\033[1;36mquosys>\033[0m ").strip()
+
+            # Comando para salir
+            if entrada.lower() in ["exit", "salir", "quit"]:
+                print("Saliendo de la terminal interactiva...")
+                break
+
+            # Comando de ayuda
+            elif entrada.lower() in ["help", "ayuda", "?"]:
+                print("\n\033[1;32mComandos disponibles:\033[0m")
+                print(
+                    "  \033[1minicializar\033[0m --nodos <int> --temperatura <float> --t-coherencia <float> [--debug]")
+                print("  \033[1mciclo\033[0m [--n <int>]")
+                print("  \033[1mestado\033[0m")
+                print("  \033[1mqubit\033[0m <operacion> [--angulo <float>]")
+                print("    Operaciones: rotX, rotY, rotZ, H, S, reset, medir")
+                print("  \033[1mtransducir\033[0m")
+                print("  \033[1mred\033[0m <operacion>")
+                print("    Operaciones: propagar, coherencia")
+                print("  \033[1mexit\033[0m / \033[1msalir\033[0m / \033[1mquit\033[0m")
+                print("  \033[1mhelp\033[0m / \033[1mayuda\033[0m / \033[1m?\033[0m")
+
+            # Procesar otros comandos
+            elif entrada:
+                # Dividir la entrada en argumentos
+                args = entrada.split()
+                comando = args[0].lower()
+                opciones = args[1:]
+
+                # Ejecutar el comando correspondiente
+                if comando == "inicializar":
+                    config = {
+                        'num_nodos_fotonicos': 5,  # valores por defecto
+                        'temperatura_inicial_mK': 15.0,
+                        't_coherencia_max_us': 100.0,
+                        'modo_debug': False
+                    }
+
+                    # Procesar opciones
+                    try:
+                        if "--nodos" in opciones:
+                            config['num_nodos_fotonicos'] = int(opciones[opciones.index("--nodos") + 1])
+                        if "--temperatura" in opciones:
+                            config['temperatura_inicial_mK'] = float(opciones[opciones.index("--temperatura") + 1])
+                        if "--t-coherencia" in opciones:
+                            config['t_coherencia_max_us'] = float(opciones[opciones.index("--t-coherencia") + 1])
+                        if "--debug" in opciones:
+                            config['modo_debug'] = True
+
+                        cli.inicializar_sistema(config)
+                    except (ValueError, IndexError) as e:
+                        print(f"Error en los parámetros: {e}")
+                        print("Uso: inicializar --nodos <int> --temperatura <float> --t-coherencia <float> [--debug]")
+
+                elif comando == "ciclo":
+                    if cli.qubit is None:
+                        print("Error: Debe inicializar el sistema primero con 'inicializar'")
+                        continue
+
+                    n = 1  # valor por defecto
+                    try:
+                        if "--n" in opciones:
+                            n = int(opciones[opciones.index("--n") + 1])
+
+                        print(f"Ejecutando {n} ciclo(s) de simulación...")
+                        for i in range(n):
+                            metricas = cli.ejecutar_ciclo()
+                            if i == n - 1 or n == 1:  # Mostrar solo el último ciclo o si solo es uno
+                                print(f"Ciclo {cli.ciclo_actual}: T={metricas.temperatura:.2f}mK, "
+                                      f"Coherencia={metricas.coherencia_red:.4f}, QBER={metricas.tasa_error:.6f}")
+                    except (ValueError, IndexError) as e:
+                        print(f"Error en los parámetros: {e}")
+                        print("Uso: ciclo [--n <int>]")
+
+                elif comando == "estado":
+                    cli.mostrar_estado_actual()
+
+                elif comando == "qubit":
+                    if cli.qubit is None:
+                        print("Error: Debe inicializar el sistema primero con 'inicializar'")
+                        continue
+
+                    try:
+                        if not opciones:
+                            print("Error: Debe especificar una operación para el qubit")
+                            print("Operaciones disponibles: rotX, rotY, rotZ, H, S, reset, medir")
+                            continue
+
+                        operacion = opciones[0]
+                        if operacion not in operacion_map:
+                            print(f"Error: Operación desconocida '{operacion}'")
+                            print("Operaciones disponibles: rotX, rotY, rotZ, H, S, reset, medir")
+                            continue
+
+                        angulo = None
+                        if "--angulo" in opciones:
+                            angulo = float(opciones[opciones.index("--angulo") + 1])
+
+                        # Para rotaciones necesitamos ángulo
+                        if operacion in ["rotX", "rotY", "rotZ"] and angulo is None:
+                            print(f"Error: La operación {operacion} requiere un ángulo (--angulo)")
+                            continue
+
+                        op = operacion_map[operacion]
+                        resultado = cli.aplicar_operacion_qubit(op, angulo)
+                        print(f"Operación {operacion} aplicada. Resultado: {resultado}")
+                        print(f"Estado actual: {cli.qubit}")
+                    except (ValueError, IndexError) as e:
+                        print(f"Error en los parámetros: {e}")
+                        print("Uso: qubit <operacion> [--angulo <float>]")
+
+                elif comando == "transducir":
+                    if cli.qubit is None:
+                        print("Error: Debe inicializar el sistema primero con 'inicializar'")
+                        continue
+
+                    foton = cli.transducir_a_foton()
+                    if foton.valido:
+                        print(f"Transducción exitosa: {foton}")
+                        print(f"  - Polarización: {np.degrees(foton.polarizacion):.2f}°")
+                        print(f"  - Fase: {np.degrees(foton.fase):.2f}°")
+                    else:
+                        print("Transducción fallida: Fotón inválido/perdido")
+
+                elif comando == "red":
+                    if cli.red_fotonica is None:
+                        print("Error: Debe inicializar el sistema primero con 'inicializar'")
+                        continue
+
+                    try:
+                        if not opciones:
+                            print("Error: Debe especificar una operación para la red")
+                            print("Operaciones disponibles: propagar, coherencia")
+                            continue
+
+                        operacion = opciones[0]
+                        if operacion == "coherencia":
+                            coherencia = cli.red_fotonica.calcular_coherencia_global()
+                            print(f"Coherencia global de la red: {coherencia:.6f}")
+                        elif operacion == "propagar":
+                            datos_entrada = [np.random.rand(2) + 1j * np.random.rand(2) for _ in range(2)]
+                            estados_salida = cli.red_fotonica.propagar_informacion(datos_entrada)
+                            print(f"Propagación completada. Estados resultantes en {len(estados_salida)} nodos.")
+                        else:
+                            print(f"Error: Operación desconocida '{operacion}'")
+                            print("Operaciones disponibles: propagar, coherencia")
+                    except Exception as e:
+                        print(f"Error al ejecutar el comando: {e}")
+                        print("Uso: red <operacion>")
+
+                else:
+                    print(f"Comando desconocido: {comando}. Escribe 'help' para ver los comandos disponibles.")
+
+        except KeyboardInterrupt:
+            print("\nOperación cancelada. Presiona Ctrl+C nuevamente o escribe 'exit' para salir.")
+        except Exception as e:
+            print(f"Error al procesar el comando: {e}")
 
 
 class QuasiCLI:
@@ -162,7 +340,7 @@ class QuasiCLI:
 
         # Simular pequeños cambios en la temperatura
         nuevo_temp = self.qubit.temperatura + np.random.normal(0, 0.1)
-        self.qubit.temperatura = nuevo_temp
+        self.qubit.temperatura = max(0.1, nuevo_temp)  # Evitar temperaturas negativas
 
         return self.metricas
 
@@ -232,6 +410,9 @@ def main():
 
     parser = argparse.ArgumentParser(description="CLI para Quosys - Quantum Simulator System v1.0.0")
 
+    # Subcomando para modo interactivo
+    parser.add_argument("--interactivo", "-i", action="store_true", help="Iniciar modo interactivo")
+
     # Comandos principales
     subparsers = parser.add_subparsers(dest="comando", help="Comandos disponibles")
 
@@ -260,13 +441,19 @@ def main():
 
     # Comando: red
     parser_red = subparsers.add_parser("red", help="Operaciones sobre la red fotónica")
-    parser_red.add_argument("operacion", choices=["propagar", "coherencia"], help="Operación a realizar")
+    parser_red.add_argument("operacion", choices=["propagar", "coherencia", "medir"],
+                            help="Operación a realizar")
 
     # Analizamos los argumentos
     args = parser.parse_args()
 
     # Instancia de la CLI
     cli = QuasiCLI()
+
+    # Modo interactivo
+    if args.interactivo:
+        iniciar_terminal_interactiva(cli)
+        return
 
     # Ejecutar el comando correspondiente
     if args.comando == "inicializar":
@@ -345,34 +532,32 @@ def main():
             datos_entrada = [np.random.rand(2) + 1j * np.random.rand(2) for _ in range(2)]
             estados_salida = cli.red_fotonica.propagar_informacion(datos_entrada)
             print(f"Propagación completada. Estados resultantes en {len(estados_salida)} nodos.")
+        elif args.operacion == "medir":
+            # Nueva operación para medir el estado de la red
+            try:
+                resultados = [np.random.choice([0, 1]) for _ in range(cli.config_simulacion.num_nodos_fotonicos)]
+                print(f"Mediciones en los nodos fotónicos: {resultados}")
+                correlacion = np.mean([1 if r == resultados[0] else -1 for r in resultados])
+                print(f"Correlación medida: {correlacion:.4f}")
+            except Exception as e:
+                print(f"Error al medir la red: {e}")
 
     else:
-        print("Quosys - Quantum Simulator System v1.0.0 CLI")
-        print("Uso: python quasi_cli.py [comando] [opciones]")
-        print("Ejecute 'python quasi_cli.py -h' para ver la ayuda.")
+        # Si no hay comando especificado o es desconocido, mostrar ayuda
+        if not args.comando:
+            print("Quosys - Quantum Simulator System v1.0.0 CLI")
+            print("Uso: python quasi_cli.py [comando] [opciones]")
+            print("      python quasi_cli.py -i (para modo interactivo)")
+            print("Ejecute 'python quasi_cli.py -h' para ver la ayuda.")
 
 
 if __name__ == "__main__":
-    main()
-
-    # ejemplo de uso:
-    # quasi_cli.py
-    # Inicializar el sistema
-    # python quasi_cli.py inicializar --nodos 5 --temperatura 15.0 --t-coherencia 100.0
-    # python quasi_cli.py inicializar
-    # Ver el estado actual
-    # python quasi_cli.py estado
-
-    # Ejecutar un ciclo de simulación
-    # python quasi_cli.py ciclo --n 3
-
-    # Aplicar operaciones al qubit
-    # python quasi_cli.py qubit H
-    # python quasi_cli.py qubit rotX --angulo 1.57
-    # python quasi_cli.py qubit medir
-
-    # Transducir el estado a un fotón
-    # python quasi_cli.py transducir
-
-    # Operaciones sobre la red fotónica
-    # python quasi_cli.py red coherencia
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nOperación cancelada por el usuario.")
+        sys.exit(0)
+    except Exception as e:
+        logger.error(f"Error fatal: {e}")
+        print(f"Error fatal: {e}")
+        sys.exit(1)

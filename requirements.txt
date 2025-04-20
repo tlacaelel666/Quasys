@@ -1,0 +1,16 @@
+pip~=24.2
+attrs~=25.3.0
+zlib~=1.2.13
+distro~=1.9.0
+wheel~=0.45.1
+pysocks~=1.7.1
+protobuf~=5.29.3
+openssl~=3.0.16
+cryptography~=42.0.5
+pillow~=11.1.0
+filelock~=3.18.0
+numpy~=1.26.4
+tensorflow~=2.19.0
+matplotlib~=3.10.1
+scikit-learn~=1.6.1
+scipy~=1.15.2
